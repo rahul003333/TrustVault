@@ -1,27 +1,59 @@
 
-package com.trustvault.config;
+    package com.trustvault.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.web.SecurityFilterChain;
+    import com.trustvault.security.JwtAuthenticationFilter;
+    import org.springframework.http.HttpStatus;
+    import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+    import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+    import org.springframework.security.config.http.SessionCreationPolicy;
+    import org.springframework.security.web.SecurityFilterChain;
+    import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+    import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+    @Configuration
+    @EnableMethodSecurity
+    public class SecurityConfig {
 
-@Configuration
-public class SecurityConfig {
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+        public SecurityConfig(
+                JwtAuthenticationFilter jwtAuthenticationFilter) {
+            this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        }
 
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                )
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable);
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http)
+                throws Exception {
 
-        return http.build();
+            http
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .formLogin(AbstractHttpConfigurer::disable)
+                    .httpBasic(AbstractHttpConfigurer::disable)
+                    .sessionManagement(session -> session
+                            .sessionCreationPolicy(
+                                    SessionCreationPolicy.STATELESS
+                            )
+                    )
+                    .exceptionHandling(exception -> exception
+                            .authenticationEntryPoint(
+                                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                            )
+                    )
+                    .authorizeHttpRequests(auth -> auth
+                            .requestMatchers(
+                                    "/api/auth/register",
+                                    "/api/auth/register-owner",
+                                    "/api/auth/login"
+                            ).permitAll()
+                            .anyRequest().authenticated()
+                    )
+                    .addFilterBefore(
+                            jwtAuthenticationFilter,
+                            UsernamePasswordAuthenticationFilter.class
+                    );
+
+            return http.build();
+        }
     }
-}

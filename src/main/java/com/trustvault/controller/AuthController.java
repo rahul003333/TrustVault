@@ -6,6 +6,7 @@ import com.trustvault.dto.LoginResponse;
 import com.trustvault.dto.RegisterRequest;
 import com.trustvault.dto.RegisterResponse;
 import com.trustvault.entity.User;
+import com.trustvault.security.JwtService;
 import com.trustvault.service.UserService;
 
 import jakarta.validation.Valid;
@@ -17,9 +18,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService,
+                          JwtService jwtService) {
         this.userService = userService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -50,12 +54,35 @@ public class AuthController {
                 request.getPassword()
         );
 
+        String token = jwtService.generateToken(user.getUsername());
+
         return new LoginResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getRole().name(),
-                "Login successful"
+                "Login successful",
+                token
         );
     }
+
+    @PostMapping("/register-owner")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RegisterResponse registerOwner(
+            @Valid @RequestBody RegisterRequest request) {
+
+        User user = userService.registerDocumentOwner(
+                request.getUsername(),
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return new RegisterResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole().name()
+        );
+    }
+
 }

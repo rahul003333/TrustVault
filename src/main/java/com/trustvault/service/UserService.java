@@ -4,6 +4,7 @@ package com.trustvault.service;
 import com.trustvault.entity.User;
 import com.trustvault.entity.Role;
 import com.trustvault.repository.UserRepository;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,23 @@ public class UserService {
             String username,
             String email,
             String rawPassword) {
+        return createUser(username, email, rawPassword, Role.VIEWER);
+    }
+
+    @Transactional
+    public User registerDocumentOwner(
+            String username,
+            String email,
+            String rawPassword) {
+        return createUser(
+                username, email, rawPassword, Role.DOCUMENT_OWNER);
+    }
+
+    private User createUser(
+            String username,
+            String email,
+            String rawPassword,
+            Role role) {
 
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already exists");
@@ -39,9 +57,7 @@ public class UserService {
         user.setUsername(username);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(rawPassword));
-
-        // Public registration must never create an ADMIN.
-        user.setRole(Role.VIEWER);
+        user.setRole(role);
 
         return userRepository.save(user);
     }
@@ -49,10 +65,13 @@ public class UserService {
     public User loginUser(String username, String rawPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Invalid username or password"));
+                        new IllegalArgumentException(
+                                "Invalid username or password"));
 
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new IllegalArgumentException("Invalid username or password");
+        if (!passwordEncoder.matches(
+                rawPassword, user.getPassword())) {
+            throw new IllegalArgumentException(
+                    "Invalid username or password");
         }
 
         return user;

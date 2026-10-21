@@ -44,3 +44,6 @@ application-local.properties
 # Logs
 *.log
 
+
+# Uploaded TrustVault documents
+trustvault-files/

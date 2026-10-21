@@ -2,7 +2,7 @@
 package com.trustvault.entity;
 
 public enum Role {
-    ADMIN,
-    OWNER,
+    ADMINISTRATOR,
+    DOCUMENT_OWNER,
     VIEWER
 }

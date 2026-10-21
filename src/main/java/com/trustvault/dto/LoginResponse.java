@@ -8,14 +8,16 @@ public class LoginResponse {
     private String email;
     private String role;
     private String message;
+    private String token;
 
     public LoginResponse(Long id, String username, String email,
-                         String role, String message) {
+                         String role, String message, String token) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.role = role;
         this.message = message;
+        this.token = token;
     }
 
     public Long getId() {
@@ -36,5 +38,9 @@ public class LoginResponse {
 
     public String getMessage() {
         return message;
+    }
+
+    public String getToken() {
+        return token;
     }
 }
