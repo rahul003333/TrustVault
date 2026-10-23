@@ -35,6 +35,9 @@ public class Document {
     @Column(nullable = false)
     private LocalDateTime uploadedAt;
 
+    @Column(nullable = false)
+    private boolean publiclyShared = false;
+
     public Document() {
     }
 
@@ -91,5 +94,13 @@ public class Document {
 
     public void setUploadedAt(LocalDateTime uploadedAt) {
         this.uploadedAt = uploadedAt;
+    }
+
+    public boolean isPubliclyShared() {
+        return publiclyShared;
+    }
+
+    public void setPubliclyShared(boolean publiclyShared) {
+        this.publiclyShared = publiclyShared;
     }
 }
