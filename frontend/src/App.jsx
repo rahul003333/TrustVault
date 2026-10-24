@@ -18,6 +18,8 @@ import {
   Eye,
   EyeOff,
     Globe,
+    GlobeOff,
+    Trash2,
   LockKeyhole,
   CloudUpload,
   LoaderCircle,
@@ -76,9 +78,8 @@ function getOwnerName(doc) {
 
 function isPublicDocument(doc) {
   return (
-      doc.public === true ||
-      doc.isPublic === true ||
-      String(doc.visibility || doc.accessLevel || "").toUpperCase() === "PUBLIC"
+      doc?.publiclyShared === true ||
+      doc?.publiclyShared === "true"
   );
 }
 
@@ -115,6 +116,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [isRegister, setIsRegister] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("VIEWER");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -223,16 +225,21 @@ export default function App() {
     setMessage("");
   }
 
+
   async function handleSubmit(event) {
     event.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const path = isRegister ? "/auth/register" : "/auth/login";
+      const path = isRegister
+          ? selectedRole === "DOCUMENT_OWNER"
+              ? "/auth/register-owner"
+              : "/auth/register"
+          : "/auth/login";
 
       const body = isRegister
-          ? { username, email, password, role: "VIEWER" }
+          ? { username, email, password }
           : { username, password };
 
       const response = await fetch(`${API_BASE}${path}`, {
@@ -256,7 +263,9 @@ export default function App() {
       }
 
       if (isRegister) {
-        showMessage("Registration successful. Please sign in.");
+        showMessage(
+            `${selectedRole === "DOCUMENT_OWNER" ? "Document Owner" : "Viewer"} account created. Please sign in.`
+        );
         setIsRegister(false);
         setPassword("");
       } else {
@@ -268,7 +277,7 @@ export default function App() {
 
         if (!token) {
           throw new Error(
-              "The login response did not contain a token. Check your backend LoginResponse fields."
+              "The login response did not contain a token. Check LoginResponse.java."
           );
         }
 
@@ -293,6 +302,7 @@ export default function App() {
       setLoading(false);
     }
   }
+
 
   async function loadDocuments() {
     if (!user) return;
@@ -450,27 +460,88 @@ export default function App() {
     }
   }
 
+
   async function changeVisibility(doc) {
     const id = getDocumentId(doc);
-    if (id == null) return;
 
-    if (!canUpload) {
-      showMessage("Only document owners or administrators can change visibility.", "error");
+    if (id == null) {
+      showMessage("Could not find the document ID.", "error");
       return;
     }
 
-    const nextVisibility = isPublicDocument(doc) ? "PRIVATE" : "PUBLIC";
+    if (!canUpload) {
+      showMessage(
+          "Only authorized document owners can change visibility.",
+          "error"
+      );
+      return;
+    }
+
+    const makePublic = !isPublicDocument(doc);
 
     try {
-      await apiRequest(`/documents/${id}/visibility`, {
-        method: "PATCH",
-        body: JSON.stringify({ visibility: nextVisibility }),
-      });
+      await apiRequest(
+          `/documents/${id}/visibility?makePublic=${makePublic}`,
+          {
+            method: "PUT",
+          }
+      );
 
-      showMessage(`Document is now ${nextVisibility.toLowerCase()}.`);
+      showMessage(
+          `Document is now ${makePublic ? "public" : "private"}.`
+      );
+
       await loadDocuments();
     } catch (error) {
-      showMessage(`Could not change visibility: ${error.message}`, "error");
+      showMessage(
+          `Could not change visibility: ${error.message}`,
+          "error"
+      );
+    }
+  }
+
+
+  async function deleteDocument(doc) {
+    const id = getDocumentId(doc);
+
+    if (id == null) {
+      showMessage("Could not find the document ID.", "error");
+      return;
+    }
+
+    if (
+        role !== "ADMINISTRATOR" &&
+        role !== "ADMIN" &&
+        role !== "DOCUMENT_OWNER" &&
+        role !== "OWNER"
+    ) {
+      showMessage(
+          "Only Administrators and Document Owners can delete documents.",
+          "error"
+      );
+      return;
+    }
+
+    const name = getDocumentName(doc);
+
+    if (!window.confirm(`Are you sure you want to permanently delete "${name}"?`)) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      showMessage(`"${name}" was deleted successfully.`);
+
+      if (previewDocument && getDocumentId(previewDocument) === id) {
+        closePreview();
+      }
+
+      await loadDocuments();
+    } catch (error) {
+      showMessage(`Could not delete document: ${error.message}`, "error");
     }
   }
 
@@ -581,18 +652,36 @@ export default function App() {
                   </div>
               )}
 
+
               {isRegister && (
-                  <label className="form-field">
-                    <span>Email address</span>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="you@example.com"
-                        required
-                    />
-                  </label>
+                  <>
+                    <label className="form-field">
+                      <span>Account type</span>
+                      <select
+                          value={selectedRole}
+                          onChange={(event) => setSelectedRole(event.target.value)}
+                          required
+                      >
+                        <option value="VIEWER">Viewer — view available documents</option>
+                        <option value="DOCUMENT_OWNER">
+                          Document Owner — upload and manage documents
+                        </option>
+                      </select>
+                    </label>
+
+                    <label className="form-field">
+                      <span>Email address</span>
+                      <input
+                          type="email"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          required
+                      />
+                    </label>
+                  </>
               )}
+
 
               <label className="form-field">
                 <span>Username</span>
@@ -660,9 +749,9 @@ export default function App() {
               <Icon size={23} />
             </div>
 
-            <span className={`visibility-badge ${publicDoc ? "public" : "private"}`}>
-            {publicDoc ? "Public" : "Private"}
-          </span>
+            <span>
+  {isPublicDocument(doc) ? "Public" : "Private"}
+</span>
           </div>
 
           <h3 title={name}>{name}</h3>
@@ -694,16 +783,33 @@ export default function App() {
               <Download size={17} />
             </button>
 
-            {canUpload && (
+            {(role === "ADMINISTRATOR" ||
+                role === "ADMIN" ||
+                ((role === "DOCUMENT_OWNER" || role === "OWNER") &&
+                    activePage === "my-docs")) && (
                 <button
                     className="icon-button"
                     title={publicDoc ? "Make private" : "Make public"}
-                    aria-label={publicDoc ? "Make private" : "Make public"}
                     onClick={() => changeVisibility(doc)}
                 >
-                  {publicDoc ? <EyeOff size={17} /> : <Globe size={17} />}
+                  {publicDoc ? <GlobeOff size={17} /> : <Globe size={17} />}
                 </button>
             )}
+
+            {(role === "ADMINISTRATOR" ||
+                role === "ADMIN" ||
+                ((role === "DOCUMENT_OWNER" || role === "OWNER") &&
+                    activePage === "my-docs")) && (
+                <button
+                    className="icon-button delete-button"
+                    title="Delete document"
+                    aria-label={`Delete ${name}`}
+                    onClick={() => deleteDocument(doc)}
+                >
+                  <Trash2 size={17} />
+                </button>
+            )}
+
           </div>
         </article>
     );

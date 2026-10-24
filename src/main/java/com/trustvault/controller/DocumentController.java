@@ -116,7 +116,7 @@ public class DocumentController {
     }
 
     @PutMapping("/{id}/visibility")
-    @PreAuthorize("hasRole('DOCUMENT_OWNER')")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'DOCUMENT_OWNER')")
     public Document changeVisibility(
             @PathVariable Long id,
             @RequestParam boolean makePublic,
@@ -130,6 +130,16 @@ public class DocumentController {
      * Retrieves the document metadata for response headers.
      * The service must still authorize file access before bytes are returned.
      */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'DOCUMENT_OWNER')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDocument(
+            @PathVariable Long id,
+            Authentication authentication) throws IOException{
+
+        documentService.deleteMyDocument(
+                authentication.getName(), id);
+    }
     private Document findDocumentForResponse(
             Long id,
             Authentication authentication) {

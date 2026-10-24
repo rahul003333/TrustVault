@@ -1798,3 +1798,11 @@ svg {
     font-size: 18px;
   }
 }
+.delete-button {
+  color: #dc2626;
+}
+
+.delete-button:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
