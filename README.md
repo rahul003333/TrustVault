@@ -1,371 +1,194 @@
-# TrustVault — Secure Document Sharing
+# TrustVault
 
-TrustVault is a full-stack secure document-sharing application built with Spring Boot, Spring Security, JWT authentication, React, and PostgreSQL. It allows authenticated users to upload, access, download, and share documents according to role-based permissions, document ownership, and public/private visibility rules.
+TrustVault is a secure PDF-sharing application built with Java Spring Boot, Spring Security, React, and a database. It provides JWT authentication, role-based access control, PDF upload and retrieval, public/private sharing, and audit logging for security-relevant actions.
 
-The project focuses on practical application security, protected file storage, authorization, and an audit trail for security-relevant actions.
+> **PDF-only policy:** TrustVault is designed to accept PDF files only. PNG, JPEG, DOCX, and all other file formats are not supported.
+
+> **Security:** Never commit passwords, JWT signing secrets, database credentials, or uploaded documents. Keep the local `trustvault-files/` directory out of Git.
 
 ## Features
 
-- User registration and login.
-- JWT-based authentication for protected API requests.
-- Password hashing using BCrypt.
-- Exactly three application roles:
-    - `ADMINISTRATOR`
-    - `DOCUMENT_OWNER`
-    - `VIEWER`
-- Role-based authorization for API endpoints and document operations.
-- Document upload, listing, visibility management, and download.
-- Private-by-default document sharing.
-- Public/private access checks.
-- Document ownership enforcement.
-- Administrator dashboard and user management.
-- Audit logging for document operations and access-control outcomes.
-- React/Vite frontend connected to the Spring Boot REST API.
-- PostgreSQL persistence using Spring Data JPA and Hibernate.
-- Configurable database connection, JWT secret, server port, logging, and upload limits.
+- Stateless JWT authentication and BCrypt password hashing.
+- Exactly three roles: `ADMINISTRATOR`, `DOCUMENT_OWNER`, and `VIEWER`.
+- PDF-only document upload, listing, download, and preview.
+- Documents are private by default.
+- Public/private visibility controls and ownership checks.
+- Audit events for authentication and document actions, including denied access.
+- Spring Data JPA/Hibernate persistence.
+- React and Vite frontend.
+- Deployment using Render.
 
 ## Technology Stack
 
-### Backend
+**Backend:** Java, Spring Boot, Spring Security, Spring Data JPA/Hibernate, JWT, BCrypt.
 
-- Java
-- Spring Boot
-- Spring Security
-- Spring Data JPA
-- Hibernate
-- JWT authentication
-- BCrypt password hashing
-- Maven
-- PostgreSQL
+**Frontend:** React, Vite, JavaScript, `lucide-react`.
 
-### Frontend
+**Database:** PostgreSQL for the deployed application; Oracle Database XE was used during local development.
 
-- React
-- Vite
-- JavaScript
-- HTML
-- CSS
+**Deployment:** Render.
 
-### Development tools
+## Roles and Permissions
 
-- IntelliJ IDEA
-- Git and GitHub
-- Postman
-- PostgreSQL
-- PowerShell
-
-## Application Architecture
-
-The backend follows a layered architecture:
-
-- **Controller layer:** Handles HTTP requests and responses.
-- **Service layer:** Implements document operations, ownership checks, and business rules.
-- **Repository layer:** Uses Spring Data JPA to access persistent data.
-- **Entity layer:** Represents users, documents, and audit records.
-- **Security layer:** Handles JWT authentication and role-based authorization.
-- **Frontend layer:** Provides login, registration, dashboards, document operations, and administrative screens.
-
-The document metadata is stored in PostgreSQL. Document bytes are stored in a server-side storage directory rather than being served directly from a public frontend directory.
-
-## Role and Permission Model
-
-TrustVault uses exactly three roles.
-
-| Operation | Administrator | Document Owner | Viewer |
+| Capability | Administrator | Document Owner | Viewer |
 |---|---|---|---|
-| Authenticate | Yes | Yes | Yes |
-| Upload documents | Yes, subject to service authorization | Yes | No |
-| Manage own documents | Yes, subject to ownership checks | Yes | No |
-| Download own documents | Yes | Yes | No |
-| Access public documents | Yes, subject to endpoint rules | Yes | Yes |
-| Access another user's private document | Only if explicitly authorized by policy | No by default | No |
-| Manage users | Authorized administrator only | No | No |
-| Access administrative audit views | Authorized administrator only | No | No |
+| Log in | Yes | Yes | Yes |
+| Upload PDF files | Yes | Yes | No |
+| View own documents | Yes | Yes | No dedicated personal list |
+| List visible documents | According to backend authorization | Own and public documents | Public documents |
+| Download own document | Yes | Yes | Not applicable |
+| Download another user's private document | No | No | No |
+| Download public documents | Yes | Yes | Yes |
+| Change document visibility | According to backend authorization | For own documents, if authorized | No |
+| View audit records | Authorized Administrator | No | No |
 
-Actual access is enforced by the backend. Frontend visibility or a hidden button is not treated as a security boundary.
-
-The application checks authentication, roles, ownership, and document visibility before granting access to protected resources.
-
-## Security Design
-
-### Authentication
-
-- Users authenticate through the backend authentication API.
-- Successful login returns authentication information including a JWT.
-- Protected API requests use the token in the `Authorization` header:
-
-  `Authorization: Bearer <JWT_TOKEN>`
-
-- Passwords are hashed using BCrypt rather than stored in plaintext.
-- The JWT signing secret is supplied through the `JWT_SECRET` environment variable.
-
-### Authorization
-
-- Spring Security protects API endpoints.
-- Role-based checks restrict administrator, owner, and viewer operations.
-- Service-level checks enforce document ownership and visibility rules.
-- Unauthorized and forbidden requests must not expose protected document content.
-- Authorization must be applied to both document metadata and file-download operations.
-
-### Document storage
-
-- Document metadata is stored in PostgreSQL.
-- Uploaded file bytes are stored outside the frontend's public assets.
-- Uploaded files must not be committed to Git.
-- File paths must be handled safely.
-- Upload validation should reject empty files and enforce configured file-size and content-type restrictions.
-- Documents are private by default unless the owner explicitly changes their visibility.
-
-### Audit logging
-
-Audit records support investigation of security-relevant operations, including document uploads, downloads, and denied access attempts.
-
-Audit records should capture useful context such as the actor, action, resource, outcome, and timestamp, where available. Passwords, JWTs, and other secrets must not be written to logs.
-
-Administrative audit data must be protected by backend authorization.
-
-## Prerequisites
-
-Install and configure:
-
-- Java compatible with the project's Maven and Spring Boot configuration.
-- PostgreSQL.
-- Node.js and npm.
-- Git.
-- IntelliJ IDEA or another Java IDE.
-- Postman or a similar API testing tool.
-
-## Local Setup
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/rahul003333/TrustVault.git
-cd TrustVault
-```
-
-### 2. Create the PostgreSQL database
-
-Create a PostgreSQL database named `trustvault` using your PostgreSQL administration tool or SQL client.
-
-For example:
-
-```sql
-CREATE DATABASE trustvault;
-```
-
-Create or select a PostgreSQL user with the permissions needed by the application. Use your own secure credentials.
-
-**Important:** This database command does not create the application tables. The application's schema configuration and entity mappings determine how the tables are initialized or validated.
-
-### 3. Configure environment variables
-
-The backend reads its configuration from environment variables. Create local environment variables in your terminal or configure them in IntelliJ's Run Configuration.
-
-Example for PowerShell:
-
-```powershell
-$env:DB_URL = "jdbc:postgresql://localhost:5432/trustvault"
-$env:DB_USERNAME = "your_postgres_username"
-$env:DB_PASSWORD = "your_postgres_password"
-$env:JWT_SECRET = "your_base64_encoded_jwt_secret"
-```
-
-Replace the example values with your actual local configuration.
-
-Use the existing JWT secret if you need existing tokens to remain valid. Changing the secret invalidates tokens signed with the previous secret.
-
-The repository includes `.env.example` as a configuration template. Spring Boot does not automatically load a `.env` file merely because it exists; supply the variables through your shell, IDE, or deployment platform.
-
-Do not commit real credentials or signing secrets.
-
-### 4. Run the backend
-
-From the repository root:
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-If the Maven wrapper is unavailable, use an installed Maven version:
-
-```powershell
-mvn spring-boot:run
-```
-
-The configured local backend port is `8082` unless overridden by the `PORT` environment variable.
-
-Base URL:
-
-`http://localhost:8082`
-
-### 5. Run backend tests
-
-```powershell
-.\mvnw.cmd clean test
-```
-
-A successful test run should finish with `BUILD SUCCESS`.
-
-Tests require the configuration and dependencies needed by the test context. If a test loads the real database configuration, ensure PostgreSQL and the required environment variables are available.
-
-### 6. Run the frontend
-
-Open the frontend directory containing `package.json` in a terminal.
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-The local Vite frontend has been run at:
-
-`http://localhost:5173`
-
-Use the actual frontend directory in your local checkout. Configure the frontend's API base URL to point to the backend address, and use the correct environment variable name expected by the frontend code.
+All permissions must be enforced by the backend, not only by hiding frontend controls.
 
 ## API Overview
 
-The following are the principal API areas used during development. Refer to the current controller classes for the exact request methods, payloads, and endpoint paths.
+### Authentication
 
-| API area | Purpose |
-|---|---|
-| `/api/auth` | Authentication and registration |
-| `/api/documents` | Document operations |
-| `/api/test/roles` | Development role-authorization checks |
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/auth/register` | Register a Viewer |
+| POST | `/api/auth/register-owner` | Register a Document Owner |
+| POST | `/api/auth/login` | Log in and receive a JWT |
 
-The authentication API includes login at:
+### Documents
 
-`POST http://localhost:8082/api/auth/login`
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/documents/upload` | Upload a PDF using `multipart/form-data`, field `file` |
+| GET | `/api/documents` | List documents visible to the current user |
+| GET | `/api/documents/my` | List the current user's documents, where authorized |
+| GET | `/api/documents/{id}/download` | Download an authorized PDF |
+| GET | `/api/documents/{id}/preview` | Preview a PDF |
+| PUT | `/api/documents/{id}/visibility?makePublic=true` | Change visibility, subject to backend authorization |
 
-Role test endpoints used during development include:
+### Role Testing
 
-- `/api/test/roles/viewer`
-- `/api/test/roles/owner`
-- `/api/test/roles/administrator`
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/test/roles/viewer` | Test Viewer authorization |
+| GET | `/api/test/roles/administrator` | Test Administrator authorization |
+| GET | `/api/test/roles/owner` | Test Document Owner authorization |
 
-The test endpoints are intended for development and verification. Review whether they should be removed or disabled in a production deployment.
+Verify the actual endpoint mappings and authorization policies in the current controllers and services before relying on this table.
 
-### JWT requests
-
-For protected endpoints, include:
+For protected requests, send the login token in the request header:
 
 ```http
-Authorization: Bearer <JWT_TOKEN>
+Authorization: Bearer <your-jwt-token>
 ```
 
-Replace the placeholder with a valid token obtained through login. Do not share tokens publicly or commit them to source control.
+## Live Deployment
 
-### Expected authorization behavior
+**Frontend:** https://trustvault-frontend-aly3.onrender.com
 
-- A valid authenticated request with sufficient permissions should succeed.
-- An unauthenticated request should be rejected.
-- An authenticated user lacking the required role should be forbidden.
-- A Viewer must not gain private-document access by changing frontend controls or guessing a document ID.
-- A denied operation must not return the protected file.
+**Backend:** https://trustvault-backend-cjkc.onrender.com
 
-The precise status code can depend on the endpoint and security configuration; verify both the HTTP response and application logs during testing.
+**GitHub repository:** https://github.com/rahul003333/TrustVault
 
-## Configuration Reference
+The deployed services may need a short time to wake up after inactivity.
 
-The current backend configuration supports these settings:
+## Local Setup
 
-| Variable/property | Purpose |
-|---|---|
-| `DB_URL` | PostgreSQL JDBC URL |
-| `DB_USERNAME` | Database username |
-| `DB_PASSWORD` | Database password |
-| `JWT_SECRET` | Base64-encoded JWT signing secret |
-| `PORT` | Backend port; defaults to `8082` |
-| `DDL_AUTO` | Hibernate schema behavior; defaults to `update` in the current local configuration |
-| `SHOW_SQL` | Controls SQL statement logging; defaults to `false` |
-| `SECURITY_LOG_LEVEL` | Spring Security logging level; defaults to `INFO` |
+### Prerequisites
 
-The upload limits configured in the backend are currently:
+- A compatible JDK.
+- Maven or the Maven wrapper.
+- Node.js and npm.
+- A database configured for the active Spring profile.
 
-- Maximum individual file size: `25MB`
-- Maximum multipart request size: `30MB`
+### Configure the Backend
 
-### Production configuration
+Review `src/main/resources/application.properties` and the active environment configuration.
 
-Before deploying:
+Example placeholders:
 
-- Set `DDL_AUTO=validate` only after the production schema has been created and verified.
-- Use a managed PostgreSQL database or another properly secured PostgreSQL installation.
-- Set a strong, unique JWT signing secret.
-- Set database credentials using the hosting platform's secret/environment-variable facility.
-- Configure CORS to allow only the intended frontend origins.
-- Avoid exposing development-only test endpoints.
-- Use HTTPS.
-- Disable verbose SQL and security debugging in production.
-- Configure persistent storage or object storage for uploaded files.
-- Verify that uploaded files survive restarts and redeployments.
-- Apply database backups, access restrictions, and appropriate retention policies.
+```properties
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+jwt.secret=${JWT_SECRET}
+```
 
-Do not assume that a hosting provider's local filesystem is persistent. Uploaded files can be lost if the application uses an ephemeral filesystem.
+These are placeholders, not real credentials. Configure the required values through local environment variables or an untracked configuration file. Never commit production credentials or JWT secrets.
 
-## Git and Secret Management
+### Run the Backend
 
-The following must not be committed:
+From the repository root:
 
-- Real `.env` files containing credentials.
-- Real JWT signing secrets.
-- Database passwords.
-- JWT access tokens.
-- Uploaded document files in `trustvault-files/`.
-- Build output and local IDE configuration.
+```bash
+mvn spring-boot:run
+```
 
-The project `.gitignore` should exclude these items where applicable.
+Alternatively, run the Spring Boot main class from IntelliJ IDEA. Confirm the port configured for your environment.
 
-Before committing:
+### Run the Frontend
 
-```powershell
+Open a terminal in the frontend directory containing `package.json`:
+
+```bash
+npm install
+npm run dev
+```
+
+The local Vite frontend commonly runs at `http://localhost:5173/`. Ensure the frontend API base URL points to the correct backend environment.
+
+## Document Upload, Preview, and Download Policy
+
+- **Upload:** Users can upload files in any format, subject to the application's configured file-size limits.
+- **Preview:** Only PDF files can be previewed within TrustVault. Non-PDF files cannot be previewed in the application.
+- **Download:** Publicly accessible files can be downloaded in any file format, including images, Word documents, ZIP files, and other file types.
+- **Access control:** Download permissions depend on the document's visibility and the user's role. Private documents must remain protected from unauthorized access.
+- **File security:** Uploaded files must be handled safely. The application must validate access permissions and avoid executing uploaded files.
+
+**Important:** Being unable to preview a file does not prevent users from downloading it when they have permission to access it.
+
+## Security and Audit Guidance
+
+- Store password hashes, not plaintext passwords.
+- Never log or commit JWTs, passwords, or secrets.
+- Enforce authorization in both controller and service layers.
+- Record successful and denied security-relevant actions without recording credentials.
+- Keep database role constraints aligned with `ADMINISTRATOR`, `DOCUMENT_OWNER`, and `VIEWER`.
+- Review CORS, file storage persistence, storage permissions, secret management, database privileges, error responses, and audit retention before production use.
+- Do not provide unrestricted public Administrator registration.
+
+## Regression Test Checklist
+
+1. All three roles can log in.
+2. Administrator and Document Owner can upload a valid PDF within the configured size limit.
+3. PNG, JPEG, DOCX, and other non-PDF uploads are rejected by the backend.
+4. Viewer upload attempts are denied.
+5. An authorized user can download their own PDF.
+6. Other users cannot download private PDFs they do not own.
+7. Public PDFs can be downloaded only where permitted by backend rules.
+8. Visibility changes are allowed only for authorized roles and documents.
+9. Unauthorized actions are denied and relevant events are audited.
+10. Viewer access to audit records is denied, while an authorized Administrator can access them.
+11. `trustvault-files/`, secrets, credentials, and environment files containing sensitive values are excluded from Git.
+12. PDF preview works for valid PDF documents.
+
+Typical results may include `201 Created` for successful uploads, `200 OK` for successful retrieval, and `403 Forbidden` for authorization failures. Verify the actual exception handling in the application.
+
+## Git Hygiene
+
+Before committing, run:
+
+```bash
 git status
 git diff --check
-git check-ignore -v trustvault-files/
+git diff --cached --check
 ```
 
-Review all staged changes before committing.
+Review staged files carefully. Exclude `trustvault-files/`, `.env` files containing secrets, credentials, JWTs, and generated build output.
 
-## Development and Verification History
+## Project Status
 
-The project was developed incrementally, including:
+The application has been deployed, and registration, login, document upload, and download have been reported working during development testing. Verify PDF-only enforcement in both the frontend and backend, PDF preview, persistent file storage, authorization, and audit behavior before claiming production readiness.
 
-1. Spring Boot backend setup and layered architecture.
-2. Registration, login, password hashing, and JWT authentication.
-3. Role-based authorization for Administrator, Document Owner, and Viewer.
-4. Secure provisioning of the first Administrator.
-5. Document upload, listing, downloading, and visibility management.
-6. Ownership and public/private access enforcement.
-7. Audit logging and authorization troubleshooting.
-8. Administrator document authorization fixes.
-9. PostgreSQL migration and environment-based configuration.
-10. Documentation and deployment preparation.
+## License
 
-Feature descriptions should be kept aligned with the actual code and verified behavior.
-
-## Future Improvements
-
-Potential future enhancements include:
-
-- Automated integration tests for all role and ownership combinations.
-- Persistent object storage for uploaded files.
-- Document integrity checks and cryptographic hashes.
-- Download links with expiration and stronger sharing controls.
-- Pagination and filtering for documents and audit records.
-- Rate limiting and stronger authentication abuse protections.
-- Centralized production logging and monitoring.
-- CI checks for tests, dependency vulnerabilities, and secret exposure.
-- Deployment health checks and database migration tooling.
-
-## Repository
-
-GitHub: https://github.com/rahul003333/TrustVault
-
+Add a license file if you intend to distribute this project under a specific open-source license.
